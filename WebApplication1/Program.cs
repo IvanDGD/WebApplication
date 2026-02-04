@@ -1,5 +1,4 @@
 using Microsoft.Data.SqlClient;
-using System.Data;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder();
@@ -53,7 +52,7 @@ app.Run(async (context) =>
         }
 
         sb.Append("</table>");
-        await response.WriteAsync(GenerateHtmlPage(sb.ToString(), "Опросы"));
+        await response.WriteAsync(GenerateHtmlPage(sb.ToString(), "ГЋГЇГ°Г®Г±Г»"));
         return;
     }
     else if (request.Path.StartsWithSegments("/quiz"))
@@ -89,12 +88,12 @@ app.Run(async (context) =>
                     <input type="hidden" name="surveyId" value="{surveyId}" />
 
                     <div class="mb-3">
-                        <label>ФИО</label>
+                        <label>Г”Г€ГЋ</label>
                         <input name="fullName" class="form-control" required />
                     </div>
 
                     <div class="mb-3">
-                        <label>Телефон</label>
+                        <label>Г’ГҐГ«ГҐГґГ®Г­</label>
                         <input name="phone" class="form-control" required />
                     </div>
             """);
@@ -111,9 +110,9 @@ app.Run(async (context) =>
                     qNumber++;
                 }
 
-                sb.Append("<button class='btn btn-success'>Отправить</button></form>");
+                sb.Append("<button class='btn btn-success'>ГЋГІГЇГ°Г ГўГЁГІГј</button></form>");
 
-                await context.Response.WriteAsync(GenerateHtmlPage(sb.ToString(), "Прохождение опроса"));
+                await context.Response.WriteAsync(GenerateHtmlPage(sb.ToString(), "ГЏГ°Г®ГµГ®Г¦Г¤ГҐГ­ГЁГҐ Г®ГЇГ°Г®Г±Г "));
                 return;
             }
             else if (request.Method == "POST")
@@ -172,7 +171,7 @@ app.Run(async (context) =>
                     {
                         sb.Append($"""
                         <tr>
-                            <td>Опрос #{surveyId}</td>
+                            <td>ГЋГЇГ°Г®Г± #{surveyId}</td>
                             <td>{fullName}</td>
                             <td>{phone}</td>
                             <td>{createdAt}</td>
@@ -183,7 +182,7 @@ app.Run(async (context) =>
             }
 
             sb.Append("</table>");
-            await response.WriteAsync(GenerateHtmlPage(sb.ToString(), "Результаты"));
+            await response.WriteAsync(GenerateHtmlPage(sb.ToString(), "ГђГҐГ§ГіГ«ГјГІГ ГІГ»"));
         }
     }
 
