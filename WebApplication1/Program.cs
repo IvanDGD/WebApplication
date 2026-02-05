@@ -1,223 +1,190 @@
-using Microsoft.Data.SqlClient;
-using System.Data;
-using System.Text;
+using System.Diagnostics;
 
-var builder = WebApplication.CreateBuilder();
+var builder = WebApplication.CreateBuilder(args);
+
 var app = builder.Build();
-string connectionString = @"Server=(localdb)\MSSQLLocalDB;Database=Testdb;Trusted_Connection=True;TrustServerCertificate=True";
 
-app.Run(async (context) =>
+#region Main Task
+//var currencies = new[]
+//{
+//    new { code = "USD", name = "US Dollar" },
+//    new { code = "EUR", name = "Euro" },
+//    new { code = "UAH", name = "Hryvnia" }
+//};
+
+//var rates = new Dictionary<string, decimal>
+//{
+//    { "USD_EUR", 0.92m },
+//    { "EUR_USD", 1.09m },
+//    { "USD_UAH", 38.5m },
+//    { "UAH_USD", 0.026m },
+//    { "EUR_UAH", 41.8m },
+//    { "UAH_EUR", 0.024m }
+//};
+
+//app.MapGet("/", async (context) =>
+//{
+//    context.Response.ContentType = "text/html; charset=utf-8";
+
+//    var html = """
+//            <h2>Welcome on Currency Web API!</h2>
+//            <h4>Our commands</h4>
+//            <a href="/currencies">/currencies<a/></br>
+//            <a href="/exchangeRate?from=&to=">/exchangeRate?from=&to=<a/></br>
+//            <a href="/convertCurrency?from=&to=&amount=">/convertCurrency?from=&to=&amount=<a/></br>
+//    """;
+
+//    await context.Response.WriteAsync(html);
+//});
+
+//app.Map("/currencies", async context =>
+//{
+//    context.Response.ContentType = "text/html; charset=utf-8";
+
+//    await context.Response.WriteAsJsonAsync(currencies);
+//});
+
+
+//app.Map("/exchangeRate", async context =>
+//{
+//    var from = context.Request.Query["from"].ToString();
+//    var to = context.Request.Query["to"].ToString();
+
+//    var key = from + "_" + to;
+
+//    if (!rates.ContainsKey(key))
+//    {
+//        context.Response.StatusCode = 404;
+//        await context.Response.WriteAsJsonAsync(new { error = "Rate not found" });
+//        return;
+//    }
+
+//    await context.Response.WriteAsJsonAsync(new
+//    {
+//        from,
+//        to,
+//        rate = rates[key]
+//    });
+//});
+
+
+//app.Map("/convertCurrency", async context =>
+//{
+//    var from = context.Request.Query["from"].ToString();
+//    var to = context.Request.Query["to"].ToString();
+//    var amount = decimal.Parse(context.Request.Query["amount"]);
+
+//    var key = from + "_" + to;
+
+//    if (!rates.ContainsKey(key))
+//    {
+//        context.Response.StatusCode = 400;
+//        await context.Response.WriteAsJsonAsync(new { error = "Conversion error" });
+//        return;
+//    }
+
+//    await context.Response.WriteAsJsonAsync(new
+//    {
+//        from,
+//        to,
+//        amount,
+//        result = amount * rates[key]
+//    });
+//});
+#endregion
+
+#region Additional First
+//app.MapWhen(
+//    context =>
+//        context.Request.Path == "/" ||
+//        context.Request.Path == "/about" ||
+//        context.Request.Path == "/services" ||
+//        context.Request.Path == "/contacts" ||
+//        context.Request.Path == "/help",
+//    app =>
+//    {
+//        app.Run(async context =>
+//        {
+//            context.Response.ContentType = "text/html; charset=utf-8";
+
+//            var path = context.Request.Path.Value;
+
+//            if (path == "/")
+//            {
+//                await context.Response.WriteAsync("<h1>Главная</h1>");
+//            }
+//            else if (path == "/about")
+//            {
+//                await context.Response.WriteAsync("<h1>О нас</h1>");
+//            }
+//            else if (path == "/services")
+//            {
+//                await context.Response.WriteAsync("<h1>Услуги</h1>");
+//            }
+//            else if (path == "/contacts")
+//            {
+//                await context.Response.WriteAsync("<h1>Контакты</h1>");
+//            }
+//            else if (path == "/help")
+//            {
+//                await context.Response.WriteAsync("<h1>Помощь</h1>");
+//            }
+//        });
+//    }
+//);
+
+//app.Run(async context =>
+//{
+//    context.Response.StatusCode = 404;
+//    await context.Response.WriteAsync("<h1>404</h1>");
+//});
+#endregion
+
+#region Additional Second
+app.Use(async (context, next) =>
 {
-    var request = context.Request;
-    var response = context.Response;
-    response.ContentType = "text/html; charset=utf-8";
+    var stopwatch = Stopwatch.StartNew();
 
-    if (request.Path == "/")
+    await next();
+
+    stopwatch.Stop();
+
+    Console.WriteLine(
+        $"Method: {context.Request.Method}, " +
+        $"Path: {context.Request.Path}, " +
+        $"Time: {stopwatch.ElapsedMilliseconds} ms"
+    );
+});
+
+app.Use(async (context, next) =>
+{
+    const long maxSize = 1 * 1024 * 1024;
+
+    if (context.Request.ContentLength.HasValue &&
+        context.Request.ContentLength.Value > maxSize)
     {
-        response.ContentType = "text/html; charset=utf-8";
-        var sb = new StringBuilder();
-        sb.Append("<table class='table'>");
-
-        using (SqlConnection connection = new SqlConnection(connectionString))
-        {
-            await connection.OpenAsync();
-
-            string sql = @"
-            SELECT q.Id, q.Title, q.Description, COUNT(ques.Id) AS QuestionCount
-            FROM Quiz q
-            LEFT JOIN Questions ques ON q.Id = ques.QuizId
-            GROUP BY q.Id, q.Title, q.Description
-        ";
-
-            using SqlCommand command = new SqlCommand(sql, connection);
-            using SqlDataReader reader = await command.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                int id = reader.GetInt32(0);
-                string title = reader.GetString(1);
-                string description = reader.GetString(2);
-                int questionCount = reader.GetInt32(3);
-
-                sb.Append($"""
-                <tr>
-                    <td>
-                        <a href="/quiz/{id}">
-                            <h5>{title}</h5>
-                            <div style="display:flex; flex-direction: row;">{description} <p style="margin-left:15px;">{questionCount}</p></div>
-                        </a>
-                    </td>
-                </tr>
-            """);
-            }
-        }
-
-        sb.Append("</table>");
-        await response.WriteAsync(GenerateHtmlPage(sb.ToString(), "Опросы"));
+        context.Response.StatusCode = 413;
+        await context.Response.WriteAsync("Payload Too Large");
         return;
     }
-    else if (request.Path.StartsWithSegments("/quiz"))
-    {
-        var parts = request.Path.Value!.Split('/');
-        if (parts.Length == 3 && int.TryParse(parts[2], out int surveyId))
-        {
-            if (request.Method == "GET")
-            {
-                var questions = new List<(int Id, string Text)>();
 
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    SqlCommand command = new SqlCommand(
-                        "SELECT Id, QuestionText FROM Questions WHERE QuizId = @QuizId",
-                        connection
-                    );
-                    command.Parameters.AddWithValue("@QuizId", surveyId);
-
-                    using (var reader = await command.ExecuteReaderAsync())
-                    {
-                        while (reader.Read())
-                        {
-                            questions.Add((reader.GetInt32(0), reader.GetString(1)));
-                        }
-                    }
-                }
-
-                var sb = new StringBuilder();
-                sb.Append($"""
-                <form method="post" action="/quiz/{surveyId}">
-                    <input type="hidden" name="surveyId" value="{surveyId}" />
-
-                    <div class="mb-3">
-                        <label>ФИО</label>
-                        <input name="fullName" class="form-control" required />
-                    </div>
-
-                    <div class="mb-3">
-                        <label>Телефон</label>
-                        <input name="phone" class="form-control" required />
-                    </div>
-            """);
-
-                int qNumber = 1;
-                foreach (var q in questions)
-                {
-                    sb.Append($"""
-                    <div class="mb-3">
-                        <label>Q{qNumber}: {q.Text}</label>
-                        <input name="q_{q.Id}" class="form-control" required />
-                    </div>
-                """);
-                    qNumber++;
-                }
-
-                sb.Append("<button class='btn btn-success'>Отправить</button></form>");
-
-                await context.Response.WriteAsync(GenerateHtmlPage(sb.ToString(), "Прохождение опроса"));
-                return;
-            }
-            else if (request.Method == "POST")
-            {
-                var form = await request.ReadFormAsync();
-                string fullName = form["fullName"];
-                string phone = form["phone"];
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    SqlCommand command = new SqlCommand(
-                        "INSERT INTO Users (SurveyId, FullName, Phone, CreatedAt) VALUES (@QuizId, @FullName, @Phone, GETDATE())",
-                        connection
-                    );
-                    command.Parameters.AddWithValue("@QuizId", surveyId);
-                    command.Parameters.AddWithValue("@FullName", fullName);
-                    command.Parameters.AddWithValue("@Phone", phone);
-                    command.ExecuteNonQuery();
-                }
-
-                response.Redirect("/");
-                return;
-            }
-        }
-    }
-    else if (request.Path == "/admin")
-    {
-        var name = context.Request.Query["name"];
-        var password = context.Request.Query["password"];
-
-        if (name == "admin" && password == "admin")
-        {
-            var sb = new StringBuilder("<table class='table'>");
-
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                await connection.OpenAsync();
-
-                SqlCommand countCmd = new SqlCommand("SELECT COUNT(*) FROM Users", connection);
-                int count = (int)countCmd.ExecuteScalar();
-
-                for (int i = 1; i <= count; i++)
-                {
-                    SqlCommand surveyCmd = new SqlCommand($"SELECT SurveyId FROM Users WHERE Id = {i}", connection);
-                    SqlCommand fullNameCmd = new SqlCommand($"SELECT FullName FROM Users WHERE Id = {i}", connection);
-                    SqlCommand phoneCmd = new SqlCommand($"SELECT Phone FROM Users WHERE Id = {i}", connection);
-                    SqlCommand createdCmd = new SqlCommand($"SELECT FORMAT(CreatedAt, 'yyyy-MM-dd HH:mm:ss') FROM Users WHERE Id = {i}", connection);
-
-                    var surveyId = surveyCmd.ExecuteScalar();
-                    var fullName = fullNameCmd.ExecuteScalar();
-                    var phone = phoneCmd.ExecuteScalar();
-                    var createdAt = createdCmd.ExecuteScalar();
-
-                    if (surveyId != null)
-                    {
-                        sb.Append($"""
-                        <tr>
-                            <td>Опрос #{surveyId}</td>
-                            <td>{fullName}</td>
-                            <td>{phone}</td>
-                            <td>{createdAt}</td>
-                        </tr>
-                    """);
-                    }
-                }
-            }
-
-            sb.Append("</table>");
-            await response.WriteAsync(GenerateHtmlPage(sb.ToString(), "Результаты"));
-        }
-    }
-
-    else
-    {
-        response.StatusCode = 404;
-        await response.WriteAsync("Page Not Found");
-    }
+    await next();
 });
 
 
-app.Run();
-
-static string GenerateHtmlPage(string body, string header)
+app.Run(async context =>
 {
-    string html = $"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8" />
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" 
-            integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
-            <title>{header}</title>
-        </head>
-        <body>
-        <div class="container">
-        <h2 class="d-flex justify-content-center">{header}</h2>
-        <div class="mt-5"></div>
-        {body}
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe" crossorigin="anonymous"></script>
-        </div>
-        </body>
-        </html>
-        """;
-    return html;
-}
+    long size = 0;
+    context.Response.ContentType = "text/html;charset=utf8";
+    if (context.Request.ContentLength.HasValue)
+    {
+        size = context.Request.ContentLength.Value;
+    }
+    
+    await context.Response.WriteAsync(
+        $"успешно обработано, размер: {size} байт"
+    );
+});
+#endregion
+
+app.Run();
