@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-var builder = WebApplication.CreateBuilder(args);
+﻿var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<SingletonService>();
 builder.Services.AddScoped<ScopedService>();
